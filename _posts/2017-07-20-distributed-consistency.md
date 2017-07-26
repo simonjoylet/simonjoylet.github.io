@@ -7,7 +7,7 @@ tags:
 categories: 分布式
 ---
 
-　　一致性问题是分布式系统中的核心问题，目前经典的一致性算法包括2PC、3PC、Paxos、ZAB、Multi-Paxos、Raft、Dynamo等等，本文将对梳理和对比这些算法。
+　　一致性问题是分布式系统中的核心问题，目前经典的一致性算法包括2PC、3PC、Basic-Paxos、ZAB、Multi-Paxos、Raft、Dynamo等等，本文将对梳理和对比这些算法。
 
 <!--more-->
 
@@ -46,7 +46,48 @@ categories: 分布式
 
 　　三阶段提交通过设置超时解决了两阶段提交中的同步阻塞问题，通过增加事务询问阶段，提高了某个节点故障之后的数据仍然保持一致的概率，但仍存在某些情况下数据不一致的可能。
 
-## Paxos
+## Basic-Paxos
+### 原理
+Paxos是一个算法簇，最早由Lamport于1990年提出，其核心原理是多数投票原则，即一项议案如果想要获得通过，则必须获得超过半数人的同意，因为任意两个多数派之间必然有重叠，所以其他人针对这项议案想要提交一个不同的值的时候是无法获得另一个多数派同意的，也就无法通过，从而保证了一个议案有且仅有一个一致的值。Lamport提出的Paxos算法的最初版本称为Basic-Paxos。
+### 角色划分
+该算法将议员的角色分为proposer, acceptor, learner三种，proposer提出议案，议案信息包括议案编号和提议值；acceptor接收议案，acceptor收到议案后可以接受（accept）议案，如果一个议案获得多数acceptor接受，则该议案被批准（chosen）；learner学习被批准的议案。每个议员可以身兼多职。
+
+### 问题定义
+1. 必须能形成决议（value）。决议只有在被proposer提出后才能被批准；未经批准的决议称为议案（proposal）
+2. 在一次Paxos算法的执行实例中，只能批准（chosen）一个value；（但可以接受多个proposal，只要这些proposal具有同样的value)
+
+### 算法-版本1
+算法的执行分为两个阶段：  
+1. 准备阶段  
+1.1 proposer创建一个议案，此时只包括议案编号n，然后向acceptors中的一个多数派发送prepare请求；  
+1.2 acceptor收到prepare消息后，如果该议案的编号n大于它已经回复的所有prepare消息中的议案编号，则acceptor回复proposer可以接受，并承诺不再回复议案编号小于n的prepare请求；  
+2. 批准阶段  
+2.1 当一个proposer收到了acceptors中一个多数派可以接受的回复后，就进入批准阶段。它要向回复可以接受的acceptors发送accept请求，包括编号n和提议值v。  
+2.2 在不违背自己向其他proposer的承诺的前提下，acceptor收到accept请求后即接受这个请求，然后向proposer回复已接受应答。  
+2.3 当proposer收到了acceptors中一个多数派已接受的回复后，该议案获得批准。
+
+### 有没有问题
+上面的算法有没有问题？  
+当然有问题，按照上面的算法，问题定义中的第2条无法得到满足，因为随着不断有人提出编号更大的议案，已经批准的议案的值在不断变化。  
+那么怎样保证已经批准（chosen）的议案值不会发生变化呢？  
+显然有两条路，要么我们约束acceptor，要求acceptor只能接受（accept）一个议案，不能多次接受编号不同的议案；要么我们约束proposer，如果没有已批准（chosen）的决议值（value），那么proposer可以提出任意值的议案；如果决议值（value）已批准（chosen），那么proposer只能提出值为已批准的决议值的议案。  
+先考察方案一，如果acceptor只能接受一个议案，那么可能无法形成任意一个多数派，因为每个议案的提出者都可能找到几个支持者，但这些支持者都不构成多数派，这样就违反了问题定义中的第1条。  
+再考察方案二，如果约束proposer提出议案的值，那proposer需要知道当前有没有已经批准的决议值，而这可以在收集prepare请求的应答后，判断有没有形成一个多数派来确定，即由acceptor应答prepare请求时告知proposer已接受（accept）的编号最大的议案的值，如果没有接受过任何议案，则回复null，这样proposer就知道回复应答的所有acceptor中有没有一个多数派已经接受了同一个议案值，如果有，那么proposer必须提出具有同样值的议案（proposal），如果没有，那么proposer可以提出具有任意值的议案（proposal）
+
+### 算法-版本2
+1. 准备阶段  
+1.1 proposer创建一个议案，此时只包括议案编号n，然后向acceptors中的一个多数派发送prepare请求；  
+1.2 acceptor收到prepare消息后，如果该议案的编号n大于它已经回复的所有prepare消息中的议案编号，则acceptor回复proposer自己已经接受（accept）的议案的值，并承诺不再回复议案编号小于n的prepare请求；  
+2. 批准阶段  
+2.1 当一个proposer收到了acceptors中一个多数派对prepare请求的回复后，就进入批准阶段。它要向回复prepare请求的acceptors发送accept请求，包括编号n和提议值v，如果proposer没有在acceptors的回复中发现具有同一个议案值得多数派，即没有已经批准（chosen）的决议值（value）时，proposer自行指定value；如果发现了已批准的决议值，则proposer的提议值必须等于决议值。  
+2.2 在不违背自己向其他proposer的承诺的前提下，acceptor收到accept请求后即接受这个请求，然后向proposer回复已接受应答。  
+2.3 当proposer收到了acceptors中一个多数派已接受的回复后，该议案获得批准。  
+
+### 优化
+如果一个proposer发现已经有其他proposer提出了编号更高的议案，那这个proposer有必要中断这个过程，因此，在prepare过程中，如果一个acceptor发现了一个编号更高的议案，那这个acceptor在收到编号较小的prepare请求后，需要通知这个proposer中断这个议案。
+
+### 有没有其他问题
+上面的算法看起来可以满足问题定义，那还有没有其他问题？不幸的是，还有。Basic-Paxos在极端情况下会形成活锁，导致无法形成决议。具体来说，就是多个proposer交替提出编号递增的议案（proposal），每个议案在阶段2都不能批准，因为有新的编号更大的proposal刚好完成了阶段1。
 
 
 ## ZAB
