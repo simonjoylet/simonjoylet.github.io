@@ -11,7 +11,7 @@
 		{% endif %}
     <time datetime="{{ item.date }}" itemprop="datePublished">  • {{ lang.datepublished }} {{ item.date | date: "%F" }}</time>
     {% if site.leancloud.enable %}
-       <span id="{{ page.url }}" class="leancloud_visitors" data-flag-title="{{ page.title }}">  • 阅读次数: <span class="leancloud-visitors-count"></span></span>
+       <span id="{{ item.url }}" class="leancloud_visitors" data-flag-title="{{ page.title }}">  • 阅读次数: <span class="leancloud-visitors-count"></span></span>
    {% endif %}
   </p>
 </header>
