@@ -170,3 +170,8 @@ simple_jekyll_search:
 
 gems:
  - jemoji
+
+leancloud:
+  enable: true
+  app_id: H6rrqVea0pSvgsnIhg5CP5t9-gzGzoHsz
+  app_key: EPp0uaPHocR1IR7x8nmfjt0n
