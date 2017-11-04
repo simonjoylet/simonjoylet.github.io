@@ -32,7 +32,7 @@ paginate: 10
 
 #### Site
 title : Simon's Blog
-tagline: A technology blog for myself.
+tagline: A tech blog for myself.
 assets: /assets
 url:
 baseurl:
