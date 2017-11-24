@@ -83,12 +83,12 @@ Paxos是一个算法簇，最早由Lamport于1990年提出，其核心原理是�
 2.2 在不违背自己向其他proposer的承诺的前提下，acceptor收到accept请求后即接受这个请求，然后向proposer回复已接受应答。  
 2.3 当proposer收到了acceptors中一个多数派已接受的回复后，该议案获得批准。
 
-###场景分析
+### 场景分析
 * 场景1：假设5副本ABCDE，3个副本ABC都accept了编号为1的提案，值为10，DE现在没有同步，这时D以编号2向CDE发请求，CDE应该回复D，其中C回复D已经accept过10这个值，DE应该回复NULL，这时D没有看到一个关于值10的一个多数派，因此D发起第二阶段请求，请问D能设置值为20吗？当然不能。  
 * 场景2：A向ABC发prepare请求，编号为1，ABC回复A，值为NULL，在A发起第二阶段请求之前，C向CDE发起prepare请求，编号为2，CDE也回复NULL，这时A发起第二阶段请求，值为10，AB都accept了，C没有，D这时候向CDE发起第二阶段请求，值为20，这时C挂了，D只收到了DE两个accept，这时连个议案都没有通过，过了一段时间C恢复了，以编号3发起向BCD发起prepare请求，B回复10，C回复NULL，D回复20，那C以哪个值作为第二阶段的提议值呢？实际上应该选择议案编号最大的值。  
 * 现在我们可以深入理解一下prepare阶段的意义了，prepare阶段不但是约束proposer不能乱取值，而且保证较旧的proposal无法被chosen。Paxos算法的阶段一和阶段二相辅相成，缺一不可。
 
-###算法-版本3（最终版）
+### 算法-版本3（最终版）
 1. 准备阶段  
 1.1 proposer创建一个议案，此时只包括议案编号n，然后向acceptors中的一个多数派发送prepare请求；  
 1.2 acceptor收到prepare消息后，如果该议案的编号n大于它已经回复的所有prepare消息中的议案编号，则acceptor回复proposer自己已经接受（accept）的**id最大议案的id和值**，并承诺不再回复议案编号**小于等于n**的prepare请求和议案编号**小于n**的accept请求；  
