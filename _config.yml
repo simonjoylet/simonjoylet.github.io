@@ -32,7 +32,7 @@ paginate: 10
 
 #### Site
 title : Simon's Blog
-tagline: A technology blog for myself.
+tagline: A tech blog for myself.
 assets: /assets
 url:
 baseurl:
@@ -170,3 +170,8 @@ simple_jekyll_search:
 
 gems:
  - jemoji
+
+leancloud:
+  enable: true
+  app_id: H6rrqVea0pSvgsnIhg5CP5t9-gzGzoHsz
+  app_key: EPp0uaPHocR1IR7x8nmfjt0n
